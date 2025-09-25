@@ -1,0 +1,31 @@
+{
+  "name": "codex_openai_agents_sdk",
+  "version": "1.0.0",
+  "description": "One-page web app to run Snyk security scans on GitHub repositories.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geneweng/codex_openai_agents_sdk.git"
+  },
+  "keywords": [
+    "snyk",
+    "security",
+    "scanner"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/geneweng/codex_openai_agents_sdk/issues"
+  },
+  "homepage": "https://github.com/geneweng/codex_openai_agents_sdk#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "simple-git": "^3.28.0",
+    "snyk": "^1.1299.1"
+  }
+}
