@@ -6,12 +6,14 @@ const fs = require('fs/promises');
 const { exec } = require('child_process');
 const util = require('util');
 const simpleGit = require('simple-git');
+const { ActionPlanAgent } = require('./actionPlanAgent');
 
 const execAsync = util.promisify(exec);
 const app = express();
 const PORT = process.env.PORT || 4000;
 const SNYK_COMMAND = process.env.SNYK_COMMAND || 'npx snyk test --json';
 const CLIENT_DIST_PATH = path.join(__dirname, '..', 'client', 'dist');
+const actionPlanAgent = new ActionPlanAgent();
 
 const buildHelpfulErrorDetail = (details = '') => {
   const normalized = String(details || '').toLowerCase();
@@ -191,7 +193,8 @@ app.post('/api/scan', async (req, res) => {
       });
     }
     const formatted = formatSnykPayload(parsed, { repoUrl, snykCommand: SNYK_COMMAND });
-    res.json(formatted);
+    const actionPlan = actionPlanAgent.generate(formatted);
+    res.json({ ...formatted, actionPlan });
   } catch (err) {
     return res.status(500).json({
       error: 'Unable to parse Snyk output.',

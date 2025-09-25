@@ -183,6 +183,19 @@ function ScanResults({ result }) {
         items={result.licenses}
         emptyLabel="No license issues reported."
       />
+
+      <section className="card">
+        <h3>Action Plan</h3>
+        {Array.isArray(result.actionPlan) && result.actionPlan.length > 0 ? (
+          <ol className="action-plan">
+            {result.actionPlan.map((step, index) => (
+              <li key={`${index}-${step}`}>{step}</li>
+            ))}
+          </ol>
+        ) : (
+          <p className="muted">No actions recommended.</p>
+        )}
+      </section>
     </div>
   );
 }
