@@ -55,15 +55,28 @@ class ActionPlanAgent {
         if (typeof response.output_text === 'string' && response.output_text.trim()) {
           return response.output_text;
         }
-        const chunks = Array.isArray(response.output)
-          ? response.output.flatMap((item) =>
-              Array.isArray(item.content)
-                ? item.content
-                    .filter((contentItem) => contentItem?.type === 'output_text' || contentItem?.type === 'text')
-                    .map((contentItem) => contentItem.text || contentItem.value || '')
-                : [],
-            )
-          : [];
+        const chunks = [];
+        const walk = (node) => {
+          if (!node) return;
+          if (typeof node === 'string') {
+            chunks.push(node);
+            return;
+          }
+          if (Array.isArray(node)) {
+            node.forEach(walk);
+            return;
+          }
+          if (typeof node === 'object') {
+            if (typeof node.text === 'string') {
+              chunks.push(node.text);
+            }
+            if (typeof node.value === 'string') {
+              chunks.push(node.value);
+            }
+            Object.values(node).forEach(walk);
+          }
+        };
+        walk(response.output);
         return chunks.join('\n').trim();
       };
 
@@ -97,15 +110,21 @@ class ActionPlanAgent {
         },
         input: [
           {
-            role: 'user',
+            role: 'system',
             content: [
               {
                 type: 'text',
-                text: `Using this Snyk scan result JSON, produce a remediation action plan: \n${JSON.stringify(
-                  scanResult,
-                  null,
-                  2,
-                )}`,
+                text:
+                  'You are a security engineer. Carefully read the provided Snyk scan JSON, summarize the findings, then generate an ordered list of remediation steps. Respond with JSON only matching the requested schema.',
+              },
+            ],
+          },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'input_json',
+                json: scanResult,
               },
             ],
           },
