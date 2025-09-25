@@ -193,7 +193,7 @@ app.post('/api/scan', async (req, res) => {
       });
     }
     const formatted = formatSnykPayload(parsed, { repoUrl, snykCommand: SNYK_COMMAND });
-    const actionPlan = actionPlanAgent.generate(formatted);
+    const actionPlan = await actionPlanAgent.generate(formatted);
     res.json({ ...formatted, actionPlan });
   } catch (err) {
     return res.status(500).json({
