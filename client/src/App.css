@@ -207,6 +207,19 @@
   margin-top: 0.85rem;
 }
 
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.summary-text {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
 .results {
   display: flex;
   flex-direction: column;

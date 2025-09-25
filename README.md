@@ -54,6 +54,6 @@ When a `client/dist` folder is present the Express app serves the static files a
 1. A repo URL is submitted from the UI.
 2. The backend clones the repository into a temporary directory.
 3. The backend runs `snyk test --json` in that directory (using the token provided via environment var) and converts the response to a friendly shape.
-4. The frontend displays severity summaries, detailed findings, license issues, and an agent-generated action plan (falls back to heuristics if the OpenAI API is unavailable).
+4. The frontend displays severity summaries, detailed findings, license issues, and an agent-generated summary/action plan (falls back to heuristics if the OpenAI API is unavailable).
 
 Cleanup is handled automatically after every scan, even if the clone or Snyk run fails.

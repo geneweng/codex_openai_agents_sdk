@@ -34,7 +34,7 @@ class ActionPlanAgent {
           model: this.model,
           name: 'Snyk Remediation Planner',
           instructions:
-            'You are a security engineer. Given a Snyk scan result JSON, output remediation guidance as JSON matching schema {"steps": string[], "no_action": boolean}. If fixes are required, order steps by impact and include concrete actions. If no remediation is needed, set no_action to true and steps to an empty array. Return JSON only.',
+            'You are a security engineer. Given a Snyk scan result JSON, first produce a concise business-friendly summary, then list remediation steps. Respond strictly as JSON shaped like {"summary": string, "steps": string[], "no_action": boolean}. If no remediation is required, set no_action true and steps empty, but still provide an informative summary. Return JSON only.',
         })
         .catch((err) => {
           console.error('Failed to create OpenAI agent:', err.message);
@@ -76,6 +76,10 @@ class ActionPlanAgent {
             schema: {
               type: 'object',
               properties: {
+                summary: {
+                  type: 'string',
+                  description: 'Concise overview of the scan outcome',
+                },
                 steps: {
                   type: 'array',
                   items: { type: 'string' },
@@ -86,7 +90,7 @@ class ActionPlanAgent {
                   description: 'True when no remediation is needed',
                 },
               },
-              required: ['steps', 'no_action'],
+              required: ['summary', 'steps', 'no_action'],
               additionalProperties: false,
             },
           },
@@ -114,28 +118,65 @@ class ActionPlanAgent {
       }
       const parsed = JSON.parse(textOutput);
       const steps = Array.isArray(parsed.steps) ? parsed.steps.filter(Boolean) : [];
+      const summary = typeof parsed.summary === 'string' && parsed.summary.trim()
+        ? parsed.summary.trim()
+        : '';
       const noAction = Boolean(parsed.no_action) || steps.length === 0;
-      return { steps, noAction, source: 'openai' };
+      return { summary, steps, noAction, source: 'openai' };
     } catch (err) {
       console.error('Failed to generate action plan with OpenAI agent:', err.message);
       return null;
     }
   }
 
+  buildSeveritySummary(scanResult) {
+    if (!scanResult || typeof scanResult !== 'object') return '';
+    const total = Object.values(scanResult.summary || {}).reduce((acc, count) => acc + Number(count || 0), 0);
+    const parts = severityOrder
+      .map((severity) => {
+        const count = Number(scanResult.summary?.[severity] || 0);
+        if (!count) return null;
+        return `${count} ${severity}`;
+      })
+      .filter(Boolean);
+
+    const projectName = scanResult.projectName || 'repository';
+    const depCount = typeof scanResult.dependencyCount === 'number'
+      ? `${scanResult.dependencyCount} dependencies`
+      : 'an unknown dependency set';
+
+    if (total === 0) {
+      return `Snyk reported no vulnerabilities for ${projectName}. Continue monitoring ${depCount}.`;
+    }
+
+    const breakdown = parts.length > 0 ? parts.join(', ') : 'vulnerabilities detected';
+    return `${projectName} has ${total} vulnerabilities (${breakdown}). Review ${depCount}.`;
+  }
+
   generateFallback(scanResult) {
     if (!scanResult || typeof scanResult !== 'object') {
-      return { steps: [], noAction: true, source: 'fallback' };
+      return { summary: 'Unable to analyse scan result.', steps: [], noAction: true, source: 'fallback' };
     }
 
     const steps = [];
 
     if (!scanResult.repositoryAccessible) {
       steps.push('Restore repository access so automated scans can run.');
-      return { steps, noAction: false, source: 'fallback' };
+      return {
+        summary: `${scanResult.projectName || 'Repository'} is unreachable. Restore access and rerun the scan.`,
+        steps,
+        noAction: false,
+        source: 'fallback',
+      };
     }
 
     if (!Array.isArray(scanResult.issues)) {
-      return { steps, noAction: true, source: 'fallback' };
+      return {
+        summary: this.buildSeveritySummary(scanResult),
+        steps,
+        noAction: true,
+        source: 'fallback',
+      };
     }
 
     const issuesBySeverity = severityOrder.reduce((acc, severity) => {
@@ -176,10 +217,16 @@ class ActionPlanAgent {
     if (scanResult.issues.length > 0) {
       steps.push('Add automated dependency updates (Dependabot, Renovate) and enforce Snyk scans in CI.');
       steps.push('Re-run `snyk test` after applying fixes to confirm a clean report.');
-      return { steps, noAction: false, source: 'fallback' };
+      return {
+        summary: this.buildSeveritySummary(scanResult),
+        steps,
+        noAction: false,
+        source: 'fallback',
+      };
     }
 
     return {
+      summary: this.buildSeveritySummary(scanResult),
       steps: [],
       noAction: true,
       source: 'fallback',
